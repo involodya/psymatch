@@ -1,0 +1,80 @@
+{
+  "scale": {
+    "min": 1,
+    "max": 5,
+    "labels": {
+      "1": "Полностью не согласен",
+      "3": "Нейтрально",
+      "5": "Полностью согласен"
+    }
+  },
+  "patients": [
+    {
+      "id": "patient_growth_orientation",
+      "text": "Мне важно, чтобы психолог помогал мне ставить конкретные цели и давал структурированную обратную связь.",
+      "traits": {
+        "structure_focus": 0.7,
+        "emotional_support": 0.3
+      }
+    },
+    {
+      "id": "patient_emotional_depth",
+      "text": "Я хочу глубоко прорабатывать чувства и искать их коренные причины.",
+      "traits": {
+        "emotional_depth": 0.8,
+        "solution_focus": 0.2
+      }
+    },
+    {
+      "id": "patient_practicality",
+      "text": "Для меня важно получать практические задания между сессиями.",
+      "traits": {
+        "structure_focus": 0.6,
+        "experimentation": 0.4
+      }
+    },
+    {
+      "id": "patient_warmth",
+      "text": "Я чувствую доверие, когда специалист проявляет эмпатию и мягкость.",
+      "traits": {
+        "emotional_support": 0.7,
+        "boundaries": 0.3
+      }
+    }
+  ],
+  "psychologists": [
+    {
+      "id": "psychologist_method",
+      "text": "Я придерживаюсь структурированного подхода и люблю работать по плану.",
+      "traits": {
+        "structure_focus": 0.8,
+        "experimentation": 0.2
+      }
+    },
+    {
+      "id": "psychologist_depth",
+      "text": "Я специализируюсь на глубинной работе с эмоциями и семейными сценариями.",
+      "traits": {
+        "emotional_depth": 0.7,
+        "solution_focus": 0.3
+      }
+    },
+    {
+      "id": "psychologist_assignments",
+      "text": "Я часто даю клиентам домашние задания и упражнения между сессиями.",
+      "traits": {
+        "structure_focus": 0.5,
+        "experimentation": 0.5
+      }
+    },
+    {
+      "id": "psychologist_boundaries",
+      "text": "На сессиях я внимательно слежу за границами и формами взаимодействия.",
+      "traits": {
+        "boundaries": 0.7,
+        "emotional_support": 0.3
+      }
+    }
+  ]
+}
+
