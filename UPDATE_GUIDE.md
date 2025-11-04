@@ -77,7 +77,7 @@ python admin_app.py &
 ### Веб-админка
 - Статистика в реальном времени
 - Управление фича-флагами
-- http://localhost:5001
+- http://localhost:5000
 
 ### Новые команды
 - `/restart` - удалить свой профиль и начать заново
@@ -134,7 +134,7 @@ pip install -r requirements.txt --upgrade
 ### Админка не открывается
 ```bash
 # Проверьте порт
-netstat -tuln | grep 5001
+netstat -tuln | grep 5000
 
 # Запустите в консоли для отладки
 python admin_app.py
