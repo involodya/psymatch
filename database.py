@@ -36,7 +36,13 @@ class Database:
                 user_id INTEGER PRIMARY KEY,
                 name TEXT NOT NULL,
                 photo_file_id TEXT,
+                gender TEXT,
+                age INTEGER,
                 education TEXT NOT NULL,
+                about_me TEXT,
+                approach TEXT,
+                work_requests TEXT,
+                price TEXT,
                 experience TEXT NOT NULL,
                 contact TEXT,
                 FOREIGN KEY (user_id) REFERENCES users(user_id)
@@ -96,6 +102,21 @@ class Database:
             )
         ''')
         
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS feature_flags (
+                flag_name TEXT PRIMARY KEY,
+                enabled INTEGER DEFAULT 0,
+                description TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Инициализация фича-флага для теста
+        cursor.execute('''
+            INSERT OR IGNORE INTO feature_flags (flag_name, enabled, description)
+            VALUES ('psychological_test_and_matching', 0, 'Включить психологический тест и подбор по совместимости')
+        ''')
+        
         conn.commit()
         conn.close()
         logger.info("Database initialized successfully")
@@ -134,14 +155,18 @@ class Database:
         conn.close()
     
     def save_psychologist_profile(self, user_id: int, name: str, photo_file_id: str, 
-                                  education: str, experience: str, contact: str):
+                                  education: str, experience: str, contact: str,
+                                  gender: str = None, age: int = None, about_me: str = None,
+                                  approach: str = None, work_requests: str = None, price: str = None):
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
             INSERT OR REPLACE INTO psychologist_profiles 
-            (user_id, name, photo_file_id, education, experience, contact)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (user_id, name, photo_file_id, education, experience, contact))
+            (user_id, name, photo_file_id, gender, age, education, about_me, 
+             approach, work_requests, price, experience, contact)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, name, photo_file_id, gender, age, education, about_me,
+              approach, work_requests, price, experience, contact))
         conn.commit()
         conn.close()
         logger.info(f"Psychologist profile saved: {user_id}")
@@ -191,22 +216,58 @@ class Database:
         conn.commit()
         conn.close()
     
-    def get_psychologists_for_patient(self, patient_id: int) -> List[Dict]:
+    def get_match_percentage(self, patient_id: int, psychologist_id: int) -> Optional[float]:
+        """Получить процент совместимости между пациентом и психологом"""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT 
-                u.user_id, u.username,
-                pp.name, pp.photo_file_id, pp.education, pp.experience, pp.contact,
-                m.match_percentage,
-                CASE WHEN l.from_user_id IS NOT NULL THEN 1 ELSE 0 END as already_liked
-            FROM users u
-            JOIN psychologist_profiles pp ON u.user_id = pp.user_id
-            JOIN matches m ON u.user_id = m.psychologist_id
-            LEFT JOIN likes l ON l.from_user_id = ? AND l.to_user_id = u.user_id
-            WHERE m.patient_id = ? AND u.test_completed = 1
-            ORDER BY m.match_percentage DESC
-        ''', (patient_id, patient_id))
+            SELECT match_percentage FROM matches
+            WHERE patient_id = ? AND psychologist_id = ?
+        ''', (patient_id, psychologist_id))
+        row = cursor.fetchone()
+        conn.close()
+        return row['match_percentage'] if row else None
+    
+    def get_psychologists_for_patient(self, patient_id: int) -> List[Dict]:
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        # Проверяем, включен ли фича-флаг для совместимости
+        matching_enabled = self.get_feature_flag('psychological_test_and_matching')
+        
+        if matching_enabled:
+            cursor.execute('''
+                SELECT 
+                    u.user_id, u.username,
+                    pp.name, pp.photo_file_id, pp.gender, pp.age, pp.education, 
+                    pp.about_me, pp.approach, pp.work_requests, pp.price,
+                    pp.experience, pp.contact,
+                    m.match_percentage,
+                    CASE WHEN l.from_user_id IS NOT NULL THEN 1 ELSE 0 END as already_liked
+                FROM users u
+                JOIN psychologist_profiles pp ON u.user_id = pp.user_id
+                JOIN matches m ON u.user_id = m.psychologist_id
+                LEFT JOIN likes l ON l.from_user_id = ? AND l.to_user_id = u.user_id
+                WHERE m.patient_id = ? AND u.test_completed = 1
+                ORDER BY m.match_percentage DESC
+            ''', (patient_id, patient_id))
+        else:
+            # Без сортировки по совместимости
+            cursor.execute('''
+                SELECT 
+                    u.user_id, u.username,
+                    pp.name, pp.photo_file_id, pp.gender, pp.age, pp.education, 
+                    pp.about_me, pp.approach, pp.work_requests, pp.price,
+                    pp.experience, pp.contact,
+                    NULL as match_percentage,
+                    CASE WHEN l.from_user_id IS NOT NULL THEN 1 ELSE 0 END as already_liked
+                FROM users u
+                JOIN psychologist_profiles pp ON u.user_id = pp.user_id
+                LEFT JOIN likes l ON l.from_user_id = ? AND l.to_user_id = u.user_id
+                WHERE u.user_type = 'psychologist'
+                ORDER BY u.registration_date DESC
+            ''', (patient_id,))
+        
         rows = cursor.fetchall()
         conn.close()
         return [dict(row) for row in rows]
@@ -306,7 +367,9 @@ class Database:
         cursor = conn.cursor()
         cursor.execute('''
             SELECT u.user_id, u.username, 
-                   pp.name, pp.photo_file_id, pp.education, pp.experience, pp.contact
+                   pp.name, pp.photo_file_id, pp.gender, pp.age, pp.education, 
+                   pp.about_me, pp.approach, pp.work_requests, pp.price, 
+                   pp.experience, pp.contact
             FROM users u
             JOIN psychologist_profiles pp ON u.user_id = pp.user_id
             WHERE u.user_id = ?
@@ -393,4 +456,129 @@ class Database:
             'mutual_matches': mutual_matches,
             'matches_24h': matches_24h
         }
+    
+    def get_feature_flag(self, flag_name: str) -> bool:
+        """Получить значение фича-флага"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT enabled FROM feature_flags WHERE flag_name = ?', (flag_name,))
+        row = cursor.fetchone()
+        conn.close()
+        return bool(row['enabled']) if row else False
+    
+    def set_feature_flag(self, flag_name: str, enabled: bool):
+        """Установить значение фича-флага"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE feature_flags 
+            SET enabled = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE flag_name = ?
+        ''', (1 if enabled else 0, flag_name))
+        conn.commit()
+        conn.close()
+        logger.info(f"Feature flag '{flag_name}' set to {enabled}")
+    
+    def get_all_feature_flags(self) -> List[Dict]:
+        """Получить все фича-флаги"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM feature_flags ORDER BY flag_name')
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    
+    def delete_user_profile(self, user_id: int):
+        """Удаляет все данные пользователя"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            # Удаляем из всех таблиц
+            cursor.execute('DELETE FROM user_actions WHERE user_id = ?', (user_id,))
+            cursor.execute('DELETE FROM test_results WHERE user_id = ?', (user_id,))
+            cursor.execute('DELETE FROM matches WHERE patient_id = ? OR psychologist_id = ?', (user_id, user_id))
+            cursor.execute('DELETE FROM likes WHERE from_user_id = ? OR to_user_id = ?', (user_id, user_id))
+            cursor.execute('DELETE FROM psychologist_profiles WHERE user_id = ?', (user_id,))
+            cursor.execute('DELETE FROM patient_profiles WHERE user_id = ?', (user_id,))
+            cursor.execute('DELETE FROM users WHERE user_id = ?', (user_id,))
+            
+            conn.commit()
+            logger.info(f"User {user_id} profile deleted")
+        except sqlite3.Error as e:
+            logger.error(f"Error deleting user {user_id}: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
+    
+    def get_all_users_with_stats(self) -> List[Dict]:
+        """Получить всех пользователей со статистикой"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT 
+                u.user_id, u.username, u.user_type, u.registration_date, 
+                u.last_active, u.test_completed,
+                (SELECT COUNT(*) FROM likes WHERE from_user_id = u.user_id) as likes_sent,
+                (SELECT COUNT(*) FROM likes WHERE to_user_id = u.user_id) as likes_received,
+                (SELECT COUNT(*) FROM likes WHERE (from_user_id = u.user_id OR to_user_id = u.user_id) AND is_mutual = 1) as mutual_matches
+            FROM users u
+            ORDER BY u.registration_date DESC
+        ''')
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    
+    def block_user(self, user_id: int):
+        """Блокировать пользователя (помечаем в БД)"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            # Добавляем поле blocked если его нет
+            cursor.execute("PRAGMA table_info(users)")
+            columns = [row[1] for row in cursor.fetchall()]
+            if 'blocked' not in columns:
+                cursor.execute('ALTER TABLE users ADD COLUMN blocked INTEGER DEFAULT 0')
+            
+            cursor.execute('UPDATE users SET blocked = 1 WHERE user_id = ?', (user_id,))
+            conn.commit()
+            logger.info(f"User {user_id} blocked")
+        except sqlite3.Error as e:
+            logger.error(f"Error blocking user {user_id}: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
+    
+    def unblock_user(self, user_id: int):
+        """Разблокировать пользователя"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('UPDATE users SET blocked = 0 WHERE user_id = ?', (user_id,))
+            conn.commit()
+            logger.info(f"User {user_id} unblocked")
+        except sqlite3.Error as e:
+            logger.error(f"Error unblocking user {user_id}: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
+    
+    def is_user_blocked(self, user_id: int) -> bool:
+        """Проверить, заблокирован ли пользователь"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("PRAGMA table_info(users)")
+            columns = [row[1] for row in cursor.fetchall()]
+            if 'blocked' not in columns:
+                return False
+            
+            cursor.execute('SELECT blocked FROM users WHERE user_id = ?', (user_id,))
+            row = cursor.fetchone()
+            return bool(row['blocked']) if row else False
+        finally:
+            conn.close()
 

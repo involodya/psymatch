@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+
+{% block title %}Пользователь {{ user.user_id }} - PsyMatch Admin{% endblock %}
+
+{% block extra_style %}
+<style>
+    .profile-container {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+        margin-top: 20px;
+    }
+    
+    .profile-card, .stats-card {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+    }
+    
+    .profile-card h3, .stats-card h3 {
+        color: #667eea;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 10px;
+    }
+    
+    .field {
+        margin-bottom: 12px;
+    }
+    
+    .field-label {
+        font-weight: bold;
+        color: #666;
+        display: inline-block;
+        width: 150px;
+    }
+    
+    .field-value {
+        color: #333;
+    }
+    
+    .stat-item {
+        padding: 15px;
+        background: white;
+        border-radius: 5px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #667eea;
+    }
+    
+    .button-group {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn-danger {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .btn-success {
+        background: #28a745;
+        color: white;
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .btn:hover {
+        opacity: 0.9;
+    }
+    
+    .blocked-badge {
+        background: #dc3545;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-weight: bold;
+        display: inline-block;
+        margin-left: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>
+    👤 Пользователь {{ user.user_id }}
+    {% if is_blocked %}
+    <span class="blocked-badge">ЗАБЛОКИРОВАН</span>
+    {% endif %}
+</h2>
+
+<div class="profile-container">
+    <div class="profile-card">
+        <h3>
+            {% if user.user_type == 'psychologist' %}
+            👨‍⚕️ Профиль психолога
+            {% else %}
+            👤 Профиль пациента
+            {% endif %}
+        </h3>
+        
+        <div class="field">
+            <span class="field-label">ID:</span>
+            <span class="field-value">{{ user.user_id }}</span>
+        </div>
+        
+        <div class="field">
+            <span class="field-label">Username:</span>
+            <span class="field-value">@{{ user.username or 'Не указан' }}</span>
+        </div>
+        
+        <div class="field">
+            <span class="field-label">Регистрация:</span>
+            <span class="field-value">{{ user.registration_date }}</span>
+        </div>
+        
+        <div class="field">
+            <span class="field-label">Последняя активность:</span>
+            <span class="field-value">{{ user.last_active }}</span>
+        </div>
+        
+        {% if profile %}
+            {% if user.user_type == 'psychologist' %}
+                <div class="field">
+                    <span class="field-label">Имя:</span>
+                    <span class="field-value">{{ profile.name }}</span>
+                </div>
+                
+                <div class="field">
+                    <span class="field-label">Пол:</span>
+                    <span class="field-value">{{ profile.gender or 'Не указано' }}</span>
+                </div>
+                
+                <div class="field">
+                    <span class="field-label">Возраст:</span>
+                    <span class="field-value">{{ profile.age or 'Не указано' }}</span>
+                </div>
+                
+                <div class="field">
+                    <span class="field-label">Подход:</span>
+                    <span class="field-value">{{ profile.approach or 'Не указано' }}</span>
+                </div>
+                
+                <div class="field">
+                    <span class="field-label">Цена:</span>
+                    <span class="field-value">{{ profile.price or 'Не указано' }}</span>
+                </div>
+                
+                <div class="field">
+                    <span class="field-label">Образование:</span>
+                    <span class="field-value">{{ profile.education }}</span>
+                </div>
+                
+                <div class="field">
+                    <span class="field-label">О себе:</span>
+                    <span class="field-value">{{ profile.about_me or 'Не указано' }}</span>
+                </div>
+                
+                <div class="field">
+                    <span class="field-label">Запросы:</span>
+                    <span class="field-value">{{ profile.work_requests or 'Не указано' }}</span>
+                </div>
+                
+                <div class="field">
+                    <span class="field-label">Опыт:</span>
+                    <span class="field-value">{{ profile.experience }}</span>
+                </div>
+                
+                <div class="field">
+                    <span class="field-label">Контакт:</span>
+                    <span class="field-value">{{ profile.contact }}</span>
+                </div>
+            {% else %}
+                <div class="field">
+                    <span class="field-label">Запрос:</span>
+                    <span class="field-value">{{ profile.main_request }}</span>
+                </div>
+                
+                <div class="field">
+                    <span class="field-label">Контакт:</span>
+                    <span class="field-value">{{ profile.contact }}</span>
+                </div>
+            {% endif %}
+        {% endif %}
+        
+        <div class="button-group">
+            <a href="{{ url_for('users') }}" class="btn btn-secondary">← Назад к списку</a>
+            
+            {% if is_blocked %}
+            <form method="POST" action="{{ url_for('unblock_user', user_id=user.user_id) }}" style="margin: 0;">
+                <button type="submit" class="btn btn-success">Разблокировать</button>
+            </form>
+            {% else %}
+            <form method="POST" action="{{ url_for('block_user', user_id=user.user_id) }}" style="margin: 0;">
+                <button type="submit" class="btn btn-danger" onclick="return confirm('Вы уверены?')">Заблокировать</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="stats-card">
+        <h3>📊 Статистика</h3>
+        
+        <div class="stat-item">
+            <span>Лайков отправлено</span>
+            <span class="stat-value">{{ stats.likes_sent }}</span>
+        </div>
+        
+        <div class="stat-item">
+            <span>Лайков получено</span>
+            <span class="stat-value">{{ stats.likes_received }}</span>
+        </div>
+        
+        <div class="stat-item">
+            <span>Взаимных пар</span>
+            <span class="stat-value">{{ stats.mutual_matches }}</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

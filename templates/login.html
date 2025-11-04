@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Вход - PsyMatch Admin{% endblock %}
+
+{% block extra_style %}
+<style>
+    .login-container {
+        max-width: 400px;
+        margin: 100px auto;
+        padding: 40px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .login-container h2 {
+        text-align: center;
+        color: #667eea;
+        margin-bottom: 30px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        color: #333;
+        font-weight: 500;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-size: 14px;
+    }
+
+    .form-group input:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+
+    .btn-login {
+        width: 100%;
+        padding: 12px;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.3s;
+    }
+
+    .btn-login:hover {
+        background: #5568d3;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <h2>🔐 Вход в систему</h2>
+    <form method="POST">
+        <div class="form-group">
+            <label for="username">Имя пользователя</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        <div class="form-group">
+            <label for="password">Пароль</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit" class="btn-login">Войти</button>
+    </form>
+</div>
+{% endblock %}
+
